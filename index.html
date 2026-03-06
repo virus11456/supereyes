@@ -31,6 +31,11 @@
           <input type="password" id="apiKeyInput" placeholder="sk-api-..." autocomplete="off">
           <small>用於 AI 搜尋與分析。<a href="https://platform.minimaxi.com/" target="_blank">MiniMax 平台</a></small>
         </div>
+        <div class="form-group">
+          <label for="proxyUrlInput">CORS Proxy URL</label>
+          <input type="url" id="proxyUrlInput" placeholder="https://your-worker.workers.dev" autocomplete="off">
+          <small>必填。部署 <a href="https://github.com/virus11456/supereyes/blob/main/worker/index.js" target="_blank">Cloudflare Worker</a> 後貼上 URL</small>
+        </div>
         <div class="modal-actions">
           <button id="saveSettingsBtn" class="btn-primary">儲存</button>
           <button id="closeSettingsBtn" class="btn-secondary">取消</button>

@@ -5,24 +5,15 @@
 
 const SearchEngine = {
   /**
-   * Helper: fetch via CORS proxy (try multiple proxies)
+   * Helper: fetch via user's CORS proxy (Cloudflare Worker)
    */
   async corsFetch(url, options = {}) {
-    const proxies = [
-      (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-      (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    ];
-
-    let lastError;
-    for (const makeUrl of proxies) {
-      try {
-        const resp = await fetch(makeUrl(url), options);
-        if (resp.ok || resp.status < 500) return resp;
-      } catch (e) {
-        lastError = e;
-      }
+    const proxyBase = localStorage.getItem('supereyes_proxy_url');
+    if (!proxyBase) {
+      throw new Error('請先在設定中填入 CORS Proxy URL（部署 Cloudflare Worker 後取得）');
     }
-    throw lastError || new Error('All CORS proxies failed');
+    const proxyUrl = `${proxyBase}?url=${encodeURIComponent(url)}`;
+    return fetch(proxyUrl, options);
   },
 
   /**

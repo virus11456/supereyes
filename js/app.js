@@ -21,6 +21,7 @@
   const settingsBtn = $('settingsBtn');
   const settingsModal = $('settingsModal');
   const apiKeyInput = $('apiKeyInput');
+  const proxyUrlInput = $('proxyUrlInput');
   const saveSettingsBtn = $('saveSettingsBtn');
   const closeSettingsBtn = $('closeSettingsBtn');
   const apiNoticeBtn = $('apiNoticeBtn');
@@ -38,11 +39,15 @@
     const key = apiKeyInput.value.trim();
     if (key) localStorage.setItem('supereyes_api_key', key);
     else localStorage.removeItem('supereyes_api_key');
+    const proxy = proxyUrlInput.value.trim().replace(/\/+$/, '');
+    if (proxy) localStorage.setItem('supereyes_proxy_url', proxy);
+    else localStorage.removeItem('supereyes_proxy_url');
     closeSettings();
   });
 
   function openSettings() {
     apiKeyInput.value = localStorage.getItem('supereyes_api_key') || '';
+    proxyUrlInput.value = localStorage.getItem('supereyes_proxy_url') || '';
     settingsModal.classList.remove('hidden');
     apiKeyInput.focus();
   }
