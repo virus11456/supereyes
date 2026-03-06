@@ -114,7 +114,7 @@ const SearchEngine = {
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'abab6.5s-chat',
+          model: 'MiniMax-M1-40k',
           max_tokens: 2048,
           messages: [
             {
