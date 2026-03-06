@@ -3,19 +3,37 @@
  * Uses CORS proxy for browser-based API calls
  */
 
-// CORS proxy for browser requests
-const CORS_PROXY = 'https://corsproxy.io/?url=';
-
 const SearchEngine = {
   /**
-   * Fetch company data from GCIS Open Data API (via CORS proxy)
+   * Helper: fetch via CORS proxy (try multiple proxies)
+   */
+  async corsFetch(url, options = {}) {
+    const proxies = [
+      (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+      (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    ];
+
+    let lastError;
+    for (const makeUrl of proxies) {
+      try {
+        const resp = await fetch(makeUrl(url), options);
+        if (resp.ok || resp.status < 500) return resp;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error('All CORS proxies failed');
+  },
+
+  /**
+   * Fetch company data from GCIS Open Data API
    */
   async fetchCompanyData(query) {
     const results = [];
 
     try {
       const apiUrl = `https://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA3?$format=json&$filter=Company_Name like ${encodeURIComponent(query)}&$skip=0&$top=5`;
-      const resp = await fetch(CORS_PROXY + encodeURIComponent(apiUrl));
+      const resp = await this.corsFetch(apiUrl);
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data)) {
@@ -35,7 +53,7 @@ const SearchEngine = {
 
     try {
       const bizUrl = `https://data.gcis.nat.gov.tw/od/data/api/7E6AFA72-AD6A-46D3-8681-ED77951D912D?$format=json&$filter=Business_Name like ${encodeURIComponent(query)}&$skip=0&$top=3`;
-      const resp = await fetch(CORS_PROXY + encodeURIComponent(bizUrl));
+      const resp = await this.corsFetch(bizUrl);
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data)) {
@@ -103,10 +121,10 @@ const SearchEngine = {
 - 必須根據你所知的真實資訊回答，不確定的要標註「待確認」
 - 格式要清楚，善用條列式`;
 
-    const targetUrl = 'https://api.minimaxi.com/anthropic/v1/chat/completions';
+    const targetUrl = 'https://api.minimaxi.com/v1/chat/completions';
 
     try {
-      const resp = await fetch(CORS_PROXY + encodeURIComponent(targetUrl), {
+      const resp = await this.corsFetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
