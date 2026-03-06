@@ -1,0 +1,10 @@
+{
+  "name": "supereyes",
+  "version": "1.0.0",
+  "description": "搜尋引擎工具 - 搜尋公司或個人的背景資料",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  },
+  "private": true
+}
