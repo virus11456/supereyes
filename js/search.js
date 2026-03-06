@@ -107,14 +107,14 @@ const SearchEngine = {
 - 格式要清楚，善用條列式`;
 
     try {
-      const resp = await fetch('https://api.minimaxi.chat/v1/chat/completions', {
+      const resp = await fetch('https://api.minimaxi.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'MiniMax-M1-40k',
+          model: 'MiniMax-M2.5',
           max_tokens: 2048,
           messages: [
             {
