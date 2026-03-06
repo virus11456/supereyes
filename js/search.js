@@ -107,20 +107,19 @@ const SearchEngine = {
 - 格式要清楚，善用條列式`;
 
     try {
-      const resp = await fetch('https://api.minimaxi.com/v1/chat/completions', {
+      // Coding Plan uses Anthropic-compatible endpoint
+      const resp = await fetch('https://api.minimaxi.com/anthropic/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
           model: 'MiniMax-M2.5',
           max_tokens: 2048,
+          system: '你是「SuperEyes 超級之眼」的核心 AI 調查引擎。你的工作是根據使用者輸入的公司名稱或個人姓名，盡可能全面地搜尋並整理所有公開可得的資料，包括公司登記、法院判決、新聞報導、社群媒體、政府公開資料等。你必須提供有根據的資訊，並在不確定時誠實標註。回答使用繁體中文。',
           messages: [
-            {
-              role: 'system',
-              content: '你是「SuperEyes 超級之眼」的核心 AI 調查引擎。你的工作是根據使用者輸入的公司名稱或個人姓名，盡可能全面地搜尋並整理所有公開可得的資料，包括公司登記、法院判決、新聞報導、社群媒體、政府公開資料等。你必須提供有根據的資訊，並在不確定時誠實標註。回答使用繁體中文。'
-            },
             { role: 'user', content: userMessage }
           ]
         })
@@ -128,11 +127,13 @@ const SearchEngine = {
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error?.message || `API 錯誤 ${resp.status}`);
+        const errMsg = err.error?.message || err.message || `API 錯誤 ${resp.status}`;
+        throw new Error(errMsg);
       }
 
       const data = await resp.json();
-      return data.choices?.[0]?.message?.content || null;
+      // Anthropic format returns content array
+      return data.content?.[0]?.text || null;
     } catch (e) {
       console.error('AI search failed:', e);
       throw e;
