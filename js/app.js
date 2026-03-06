@@ -74,10 +74,6 @@
     if (!query) { searchInput.focus(); return; }
 
     const apiKey = localStorage.getItem('supereyes_api_key');
-    if (!apiKey) {
-      apiNotice.classList.remove('hidden');
-      return;
-    }
     apiNotice.classList.add('hidden');
 
     // Show loading
@@ -89,17 +85,20 @@
     // Animate progress
     let progress = 0;
     const progressInterval = setInterval(() => {
-      progress += Math.random() * 8;
+      progress += Math.random() * 10;
       if (progress > 90) progress = 90;
       progressBar.style.width = progress + '%';
     }, 300);
 
-    const steps = [
+    const hasAI = !!apiKey;
+    loadingText.textContent = hasAI ? '搜尋公司登記資料...' : '搜尋公司登記資料...';
+
+    const steps = hasAI ? [
       '搜尋公司登記資料...',
       'AI 正在搜尋法院判決、新聞報導...',
       'AI 正在分析社群媒體資料...',
       'AI 正在進行交叉比對分析...'
-    ];
+    ] : ['搜尋公司登記資料...'];
     let stepIdx = 0;
     const stepInterval = setInterval(() => {
       stepIdx++;
@@ -107,17 +106,29 @@
     }, 2000);
 
     try {
-      // Run company API + AI search in parallel
-      const [companyResults, aiContent] = await Promise.all([
-        SearchEngine.fetchCompanyData(query),
-        SearchEngine.aiSearch(query, currentType)
-      ]);
+      // Always fetch company data; only run AI if key exists
+      const tasks = [SearchEngine.fetchCompanyData(query)];
+      if (hasAI) tasks.push(SearchEngine.aiSearch(query, currentType));
+
+      const settled = await Promise.allSettled(tasks);
 
       clearInterval(progressInterval);
       clearInterval(stepInterval);
       progressBar.style.width = '100%';
 
-      renderResults(query, companyResults, aiContent);
+      const companyResults = settled[0].status === 'fulfilled' ? settled[0].value : [];
+      let aiContent = null;
+      let aiError = null;
+
+      if (hasAI && settled[1]) {
+        if (settled[1].status === 'fulfilled') {
+          aiContent = settled[1].value;
+        } else {
+          aiError = settled[1].reason?.message || 'AI 分析失敗';
+        }
+      }
+
+      renderResults(query, companyResults, aiContent, aiError, hasAI);
 
       loading.classList.add('hidden');
       results.classList.remove('hidden');
@@ -125,14 +136,11 @@
       clearInterval(progressInterval);
       clearInterval(stepInterval);
       loading.classList.add('hidden');
-
-      // Show error
       results.classList.remove('hidden');
       resultQuery.textContent = query;
       companySection.classList.add('hidden');
       aiResults.innerHTML = `<div class="error-msg">
         <p>搜尋失敗：${escapeHtml(err.message)}</p>
-        <p>請確認 API Key 是否正確，或稍後再試。</p>
       </div>`;
       renderSourceLinks(query);
     } finally {
@@ -140,7 +148,7 @@
     }
   }
 
-  function renderResults(query, companyResults, aiContent) {
+  function renderResults(query, companyResults, aiContent, aiError, hasAI) {
     resultQuery.textContent = query;
 
     // Company data
@@ -164,8 +172,22 @@
 
     // AI results
     if (aiContent) {
+      document.querySelector('.ai-results-section').classList.remove('hidden');
       aiResults.innerHTML = renderMarkdown(aiContent);
+    } else if (aiError) {
+      document.querySelector('.ai-results-section').classList.remove('hidden');
+      aiResults.innerHTML = `<div class="error-msg">
+        <p>AI 分析失敗：${escapeHtml(aiError)}</p>
+        <p>請確認 API Key 是否正確，或稍後再試。</p>
+      </div>`;
+    } else if (!hasAI) {
+      document.querySelector('.ai-results-section').classList.remove('hidden');
+      aiResults.innerHTML = `<div class="ai-notice">
+        <p>設定 MiniMax API Key 可啟用 AI 深度分析（法院判決、新聞、社群媒體、風險評估等）</p>
+        <button class="btn-small" onclick="document.getElementById('settingsBtn').click()">設定 API Key</button>
+      </div>`;
     } else {
+      document.querySelector('.ai-results-section').classList.remove('hidden');
       aiResults.innerHTML = '<p class="no-data">AI 未返回結果</p>';
     }
 
