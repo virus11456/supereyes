@@ -1,19 +1,21 @@
 /**
  * SuperEyes Search Engine
- * - GCIS API for company registration data
- * - MiniMax AI for comprehensive search + analysis
+ * Uses CORS proxy for browser-based API calls
  */
+
+// CORS proxy for browser requests
+const CORS_PROXY = 'https://corsproxy.io/?url=';
 
 const SearchEngine = {
   /**
-   * Fetch company data from GCIS Open Data API
+   * Fetch company data from GCIS Open Data API (via CORS proxy)
    */
   async fetchCompanyData(query) {
     const results = [];
 
     try {
       const apiUrl = `https://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA3?$format=json&$filter=Company_Name like ${encodeURIComponent(query)}&$skip=0&$top=5`;
-      const resp = await fetch(apiUrl);
+      const resp = await fetch(CORS_PROXY + encodeURIComponent(apiUrl));
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data)) {
@@ -31,10 +33,9 @@ const SearchEngine = {
       }
     } catch (e) { /* ignore */ }
 
-    // Also try business registration
     try {
       const bizUrl = `https://data.gcis.nat.gov.tw/od/data/api/7E6AFA72-AD6A-46D3-8681-ED77951D912D?$format=json&$filter=Business_Name like ${encodeURIComponent(query)}&$skip=0&$top=3`;
-      const resp = await fetch(bizUrl);
+      const resp = await fetch(CORS_PROXY + encodeURIComponent(bizUrl));
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data)) {
@@ -56,17 +57,13 @@ const SearchEngine = {
   },
 
   /**
-   * Use MiniMax AI to search and analyze
+   * Use MiniMax AI to search and analyze (via CORS proxy)
    */
   async aiSearch(query, type) {
     const apiKey = localStorage.getItem('supereyes_api_key');
     if (!apiKey) return null;
 
-    const typeContext = {
-      all: '公司與個人',
-      company: '公司',
-      person: '個人'
-    };
+    const typeContext = { all: '公司與個人', company: '公司', person: '個人' };
 
     const userMessage = `請針對「${query}」（搜尋類型：${typeContext[type] || '全部'}）進行深度調查，搜尋並整理所有公開可得的資料。
 
@@ -106,9 +103,10 @@ const SearchEngine = {
 - 必須根據你所知的真實資訊回答，不確定的要標註「待確認」
 - 格式要清楚，善用條列式`;
 
+    const targetUrl = 'https://api.minimaxi.com/anthropic/v1/chat/completions';
+
     try {
-      // MiniMax China Coding Plan: anthropic path + OpenAI format
-      const resp = await fetch('https://api.minimaxi.com/anthropic/v1/chat/completions', {
+      const resp = await fetch(CORS_PROXY + encodeURIComponent(targetUrl), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +132,6 @@ const SearchEngine = {
       }
 
       const data = await resp.json();
-      // OpenAI format response
       return data.choices?.[0]?.message?.content || null;
     } catch (e) {
       console.error('AI search failed:', e);
