@@ -1,44 +1,43 @@
 /**
- * SuperEyes — Main application logic
+ * SuperEyes — Main application
  */
 (function () {
-  const searchInput = document.getElementById('searchInput');
-  const searchBtn = document.getElementById('searchBtn');
-  const loading = document.getElementById('loading');
-  const loadingText = document.getElementById('loadingText');
-  const loadingSteps = document.getElementById('loadingSteps');
-  const progressBar = document.getElementById('progressBar');
-  const results = document.getElementById('results');
-  const emptyState = document.getElementById('emptyState');
-  const resultQuery = document.getElementById('resultQuery');
-  const resultCount = document.getElementById('resultCount');
+  const $ = id => document.getElementById(id);
+  const searchInput = $('searchInput');
+  const searchBtn = $('searchBtn');
+  const loading = $('loading');
+  const loadingText = $('loadingText');
+  const progressBar = $('progressBar');
+  const results = $('results');
+  const emptyState = $('emptyState');
+  const resultQuery = $('resultQuery');
+  const companySection = $('companySection');
+  const companyData = $('companyData');
+  const aiResults = $('aiResults');
+  const sourcesSection = $('sourcesSection');
+  const sourceLinks = $('sourceLinks');
+  const apiNotice = $('apiNotice');
+
+  const settingsBtn = $('settingsBtn');
+  const settingsModal = $('settingsModal');
+  const apiKeyInput = $('apiKeyInput');
+  const saveSettingsBtn = $('saveSettingsBtn');
+  const closeSettingsBtn = $('closeSettingsBtn');
+  const apiNoticeBtn = $('apiNoticeBtn');
+
   const typeBtns = document.querySelectorAll('.type-btn');
   const suggestionTags = document.querySelectorAll('.suggestion-tag');
-  const aiBody = document.getElementById('aiBody');
-  const aiAnalysis = document.getElementById('aiAnalysis');
-
-  // Settings
-  const settingsBtn = document.getElementById('settingsBtn');
-  const settingsModal = document.getElementById('settingsModal');
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-  const aiSetupBtn = document.getElementById('aiSetupBtn');
-
   let currentType = 'all';
 
-  // === Settings Modal ===
+  // === Settings ===
   settingsBtn.addEventListener('click', openSettings);
-  if (aiSetupBtn) aiSetupBtn.addEventListener('click', openSettings);
+  apiNoticeBtn.addEventListener('click', openSettings);
   closeSettingsBtn.addEventListener('click', closeSettings);
   settingsModal.querySelector('.modal-backdrop').addEventListener('click', closeSettings);
   saveSettingsBtn.addEventListener('click', () => {
     const key = apiKeyInput.value.trim();
-    if (key) {
-      localStorage.setItem('supereyes_api_key', key);
-    } else {
-      localStorage.removeItem('supereyes_api_key');
-    }
+    if (key) localStorage.setItem('supereyes_api_key', key);
+    else localStorage.removeItem('supereyes_api_key');
     closeSettings();
   });
 
@@ -47,10 +46,7 @@
     settingsModal.classList.remove('hidden');
     apiKeyInput.focus();
   }
-
-  function closeSettings() {
-    settingsModal.classList.add('hidden');
-  }
+  function closeSettings() { settingsModal.classList.add('hidden'); }
 
   // === Type Toggle ===
   typeBtns.forEach(btn => {
@@ -71,196 +67,161 @@
 
   // === Search ===
   searchBtn.addEventListener('click', performSearch);
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') performSearch();
-  });
-
-  const loadingMessages = {
-    company: '搜尋公司登記資料...',
-    court: '搜尋法院判決...',
-    news: '搜尋相關新聞...',
-    public: '搜尋公開資料...',
-    fb: '搜尋 Facebook...',
-    ig: '搜尋 Instagram...'
-  };
+  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') performSearch(); });
 
   async function performSearch() {
     const query = searchInput.value.trim();
     if (!query) { searchInput.focus(); return; }
 
-    saveRecentSearch(query);
+    const apiKey = localStorage.getItem('supereyes_api_key');
+    if (!apiKey) {
+      apiNotice.classList.remove('hidden');
+      return;
+    }
+    apiNotice.classList.add('hidden');
 
     // Show loading
     emptyState.classList.add('hidden');
     results.classList.add('hidden');
     loading.classList.remove('hidden');
-    loadingSteps.innerHTML = '';
-    progressBar.style.width = '0%';
-    loadingText.textContent = '正在搜尋...';
-
-    // Disable button
     searchBtn.disabled = true;
 
+    // Animate progress
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += Math.random() * 8;
+      if (progress > 90) progress = 90;
+      progressBar.style.width = progress + '%';
+    }, 300);
+
+    const steps = [
+      '搜尋公司登記資料...',
+      'AI 正在搜尋法院判決、新聞報導...',
+      'AI 正在分析社群媒體資料...',
+      'AI 正在進行交叉比對分析...'
+    ];
+    let stepIdx = 0;
+    const stepInterval = setInterval(() => {
+      stepIdx++;
+      if (stepIdx < steps.length) loadingText.textContent = steps[stepIdx];
+    }, 2000);
+
     try {
-      const searchResults = await SearchEngine.searchAll(query, currentType, (done, total, category) => {
-        const pct = Math.round((done / total) * 80);
-        progressBar.style.width = pct + '%';
-        loadingText.textContent = loadingMessages[category] || '搜尋中...';
+      // Run company API + AI search in parallel
+      const [companyResults, aiContent] = await Promise.all([
+        SearchEngine.fetchCompanyData(query),
+        SearchEngine.aiSearch(query, currentType)
+      ]);
 
-        const step = document.createElement('div');
-        step.className = 'loading-step done';
-        step.textContent = loadingMessages[category]?.replace('...', '') + ' 完成';
-        loadingSteps.appendChild(step);
-      });
+      clearInterval(progressInterval);
+      clearInterval(stepInterval);
+      progressBar.style.width = '100%';
 
-      // Render results
-      renderResults(query, searchResults);
+      renderResults(query, companyResults, aiContent);
+
       loading.classList.add('hidden');
       results.classList.remove('hidden');
-
-      // Run AI analysis
-      runAIAnalysis(query, searchResults);
-
     } catch (err) {
+      clearInterval(progressInterval);
+      clearInterval(stepInterval);
       loading.classList.add('hidden');
-      emptyState.classList.remove('hidden');
-      console.error('Search failed:', err);
+
+      // Show error
+      results.classList.remove('hidden');
+      resultQuery.textContent = query;
+      companySection.classList.add('hidden');
+      aiResults.innerHTML = `<div class="error-msg">
+        <p>搜尋失敗：${escapeHtml(err.message)}</p>
+        <p>請確認 API Key 是否正確，或稍後再試。</p>
+      </div>`;
+      renderSourceLinks(query);
     } finally {
       searchBtn.disabled = false;
     }
   }
 
-  async function runAIAnalysis(query, searchResults) {
-    const apiKey = localStorage.getItem('supereyes_api_key');
-    if (!apiKey) {
-      aiBody.innerHTML = `
-        <div class="ai-placeholder">
-          <p>設定 MiniMax API Key 即可啟用 AI 交叉比對分析</p>
-          <button class="btn-small" onclick="document.getElementById('settingsBtn').click()">前往設定</button>
-        </div>`;
-      return;
-    }
-
-    aiBody.innerHTML = `
-      <div class="ai-loading">
-        <div class="ai-typing">
-          <span></span><span></span><span></span>
-        </div>
-        <p>AI 正在分析資料並進行交叉比對...</p>
-      </div>`;
-
-    const analysis = await AIAnalyzer.analyze(query, searchResults);
-    if (analysis) {
-      aiBody.innerHTML = `<div class="ai-result">${formatMarkdown(analysis)}</div>`;
-    } else {
-      aiBody.innerHTML = `
-        <div class="ai-placeholder">
-          <p>AI 分析無法完成，請確認 API Key 是否正確</p>
-        </div>`;
-    }
-  }
-
-  function renderResults(query, data) {
+  function renderResults(query, companyResults, aiContent) {
     resultQuery.textContent = query;
 
-    let totalCount = 0;
-    Object.values(data).forEach(d => { if (d.count) totalCount += d.count; });
-    resultCount.textContent = totalCount > 0 ? `找到 ${totalCount} 筆資料` : '';
-
-    renderCard('result-company', 'status-company', data.company);
-    renderCard('result-court', 'status-court', data.court);
-    renderCard('result-news', 'status-news', data.news);
-    renderCard('result-public', 'status-public', data.public);
-    renderCard('result-fb', 'status-fb', data.fb);
-    renderCard('result-ig', 'status-ig', data.ig);
-
-    document.getElementById('card-company').classList.toggle('hidden', !data.company);
-    document.getElementById('card-court').classList.toggle('hidden', !data.court);
-    document.getElementById('card-news').classList.toggle('hidden', !data.news);
-    document.getElementById('card-public').classList.toggle('hidden', !data.public);
-    document.getElementById('card-fb').classList.toggle('hidden', !data.fb);
-    document.getElementById('card-ig').classList.toggle('hidden', !data.ig);
-  }
-
-  function renderCard(bodyId, statusId, data) {
-    const el = document.getElementById(bodyId);
-    const statusEl = document.getElementById(statusId);
-    if (!el || !data) return;
-
-    // Status badge
-    if (statusEl) {
-      if (data.count > 0) {
-        statusEl.textContent = `${data.count} 筆`;
-        statusEl.className = 'card-status has-data';
-      } else {
-        statusEl.textContent = '連結';
-        statusEl.className = 'card-status';
-      }
+    // Company data
+    if (companyResults && companyResults.length > 0) {
+      companySection.classList.remove('hidden');
+      companyData.innerHTML = companyResults.map(c => `
+        <div class="company-card">
+          <div class="company-name">${escapeHtml(c.name)}</div>
+          <div class="company-details">
+            ${c.taxId ? `<div class="detail-row"><span class="detail-label">統一編號</span><span>${escapeHtml(c.taxId)}</span></div>` : ''}
+            ${c.representative ? `<div class="detail-row"><span class="detail-label">負責人</span><span>${escapeHtml(c.representative)}</span></div>` : ''}
+            ${c.capital ? `<div class="detail-row"><span class="detail-label">資本額</span><span>${escapeHtml(c.capital)}</span></div>` : ''}
+            ${c.status ? `<div class="detail-row"><span class="detail-label">狀態</span><span>${escapeHtml(c.status)}</span></div>` : ''}
+            ${c.address ? `<div class="detail-row"><span class="detail-label">地址</span><span>${escapeHtml(c.address)}</span></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    } else {
+      companySection.classList.add('hidden');
     }
 
-    let html = '';
+    // AI results
+    if (aiContent) {
+      aiResults.innerHTML = renderMarkdown(aiContent);
+    } else {
+      aiResults.innerHTML = '<p class="no-data">AI 未返回結果</p>';
+    }
 
-    data.results.forEach(item => {
-      if (item.type === 'data') {
-        html += `<div class="data-card">
-          <div class="data-title">${escapeHtml(item.title)}</div>
-          <div class="data-details">
-            ${item.details.map(d => `
-              <div class="data-row">
-                <span class="data-label">${escapeHtml(d.label)}</span>
-                <span class="data-value">${escapeHtml(d.value)}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>`;
-      } else if (item.type === 'news') {
-        html += `<div class="news-item">
-          <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="news-title">${escapeHtml(item.title)}</a>
-          <div class="news-meta">
-            ${item.source ? `<span class="news-source">${escapeHtml(item.source)}</span>` : ''}
-            ${item.date ? `<span class="news-date">${escapeHtml(item.date)}</span>` : ''}
-          </div>
-        </div>`;
-      } else if (item.type === 'link') {
-        html += `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="ext-link">
-          <div class="ext-link-content">
-            <span class="ext-link-label">${escapeHtml(item.label)}</span>
-            <span class="ext-link-desc">${escapeHtml(item.desc)}</span>
-          </div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-        </a>`;
-      }
-    });
+    // Source links
+    renderSourceLinks(query);
+  }
 
-    el.innerHTML = html || '<p class="no-data">暫無資料</p>';
+  function renderSourceLinks(query) {
+    const links = SearchEngine.getSourceLinks(query);
+    sourcesSection.classList.remove('hidden');
+    sourceLinks.innerHTML = links.map(link => `
+      <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" class="source-link">
+        <span class="source-icon">${link.icon}</span>
+        <span class="source-label">${escapeHtml(link.label)}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </a>
+    `).join('');
+  }
+
+  function renderMarkdown(text) {
+    // Convert markdown to HTML
+    let html = escapeHtml(text);
+
+    // Headers
+    html = html.replace(/^## (.+)$/gm, '<h3 class="md-h2">$1</h3>');
+    html = html.replace(/^### (.+)$/gm, '<h4 class="md-h3">$1</h4>');
+
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // List items
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/^(\d+)\. (.+)$/gm, '<li><span class="list-num">$1.</span> $2</li>');
+
+    // Wrap consecutive <li> in <ul>
+    html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul class="md-list">$1</ul>');
+
+    // Paragraphs - wrap non-tag lines
+    html = html.split('\n').map(line => {
+      line = line.trim();
+      if (!line) return '';
+      if (line.startsWith('<h') || line.startsWith('<ul') || line.startsWith('<li') || line.startsWith('</')) return line;
+      return `<p>${line}</p>`;
+    }).join('\n');
+
+    // Clean up
+    html = html.replace(/<p><\/p>/g, '');
+
+    return `<div class="md-content">${html}</div>`;
   }
 
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
-  }
-
-  function formatMarkdown(text) {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n- /g, '</p><li>')
-      .replace(/\n(\d+)\. /g, '</p><li>')
-      .replace(/^/, '<p>')
-      .replace(/$/, '</p>')
-      .replace(/<p><\/p>/g, '');
-  }
-
-  function saveRecentSearch(query) {
-    try {
-      let recent = JSON.parse(localStorage.getItem('supereyes_recent') || '[]');
-      recent = recent.filter(q => q !== query);
-      recent.unshift(query);
-      recent = recent.slice(0, 10);
-      localStorage.setItem('supereyes_recent', JSON.stringify(recent));
-    } catch (e) { /* ignore */ }
   }
 })();

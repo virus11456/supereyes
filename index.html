@@ -25,11 +25,11 @@
       <div class="modal-backdrop"></div>
       <div class="modal-content">
         <h2>API 設定</h2>
-        <p class="modal-desc">輸入你的 API Key 以啟用 AI 分析與即時搜尋功能</p>
+        <p class="modal-desc">輸入你的 MiniMax API Key 以啟用搜尋功能</p>
         <div class="form-group">
           <label for="apiKeyInput">MiniMax API Key</label>
           <input type="password" id="apiKeyInput" placeholder="sk-api-..." autocomplete="off">
-          <small>用於 AI 交叉比對分析。<a href="https://platform.minimaxi.com/" target="_blank">MiniMax 平台</a></small>
+          <small>用於 AI 搜尋與分析。<a href="https://platform.minimaxi.com/" target="_blank">MiniMax 平台</a></small>
         </div>
         <div class="modal-actions">
           <button id="saveSettingsBtn" class="btn-primary">儲存</button>
@@ -42,9 +42,7 @@
     <header class="header">
       <div class="logo">
         <div class="logo-eye">
-          <div class="eye-outer">
-            <div class="eye-inner"></div>
-          </div>
+          <div class="eye-outer"><div class="eye-inner"></div></div>
         </div>
         <div>
           <h1>SuperEyes</h1>
@@ -53,7 +51,7 @@
       </div>
     </header>
 
-    <!-- Search Section -->
+    <!-- Search -->
     <main class="main">
       <div class="search-container">
         <div class="search-box">
@@ -61,12 +59,7 @@
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input type="text" id="searchInput" placeholder="輸入公司名稱或個人姓名..." autocomplete="off">
-          <button id="searchBtn" class="search-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            搜尋
-          </button>
+          <button id="searchBtn" class="search-btn">搜尋</button>
         </div>
         <div class="search-type-toggle">
           <button class="type-btn active" data-type="all">全部</button>
@@ -75,149 +68,77 @@
         </div>
       </div>
 
+      <!-- No API Key Notice -->
+      <div id="apiNotice" class="api-notice hidden">
+        <p>請先設定 MiniMax API Key 才能使用搜尋功能</p>
+        <button class="btn-small" id="apiNoticeBtn">前往設定</button>
+      </div>
+
       <!-- Loading -->
       <div id="loading" class="loading hidden">
         <div class="loading-animation">
           <div class="pulse-ring"></div>
           <div class="pulse-ring delay"></div>
           <div class="loading-eye">
-            <div class="eye-outer loading-variant">
-              <div class="eye-inner"></div>
-            </div>
+            <div class="eye-outer loading-variant"><div class="eye-inner"></div></div>
           </div>
         </div>
-        <p id="loadingText">搜尋中...</p>
+        <p id="loadingText">AI 正在搜尋與分析中...</p>
         <div class="loading-progress">
           <div class="progress-bar" id="progressBar"></div>
         </div>
-        <div class="loading-steps" id="loadingSteps"></div>
       </div>
 
       <!-- Results -->
       <div id="results" class="results hidden">
-        <!-- AI Analysis Section -->
-        <section class="ai-analysis" id="aiAnalysis">
-          <div class="ai-header">
-            <div class="ai-badge">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22l-.75-12.07A4.001 4.001 0 0 1 12 2z"/>
-                <path d="M9 6.5a2.5 2.5 0 1 1 5 0"/>
-              </svg>
-              AI 交叉比對分析
-            </div>
-            <span class="ai-model">MiniMax AI</span>
-          </div>
-          <div class="ai-body" id="aiBody">
-            <div class="ai-placeholder">
-              <p>需要設定 MiniMax API Key 才能啟用 AI 分析</p>
-              <button class="btn-small" id="aiSetupBtn">前往設定</button>
-            </div>
-          </div>
-        </section>
-
         <h2 class="results-title">
-          <span class="results-label">搜尋結果</span>
           <span id="resultQuery" class="results-query"></span>
-          <span id="resultCount" class="results-count"></span>
         </h2>
 
-        <div class="results-grid">
-          <!-- 公司登記 -->
-          <section class="result-card" id="card-company">
-            <div class="card-header">
-              <span class="card-icon">🏢</span>
-              <h3>公司登記資料</h3>
-              <span class="card-status" id="status-company"></span>
-            </div>
-            <div class="card-body" id="result-company"></div>
-          </section>
+        <!-- Company Data from GCIS API -->
+        <section id="companySection" class="company-section hidden">
+          <div class="section-header">
+            <span>🏢</span>
+            <h3>公司登記資料</h3>
+            <span class="badge">經濟部商工登記</span>
+          </div>
+          <div id="companyData" class="company-data"></div>
+        </section>
 
-          <!-- 法院判決 -->
-          <section class="result-card" id="card-court">
-            <div class="card-header">
-              <span class="card-icon">⚖️</span>
-              <h3>法院判決</h3>
-              <span class="card-status" id="status-court"></span>
-            </div>
-            <div class="card-body" id="result-court"></div>
-          </section>
+        <!-- AI Search Results -->
+        <section class="ai-results-section">
+          <div class="section-header">
+            <span>🔍</span>
+            <h3>搜尋結果與 AI 分析</h3>
+            <span class="badge ai">MiniMax AI</span>
+          </div>
+          <div id="aiResults" class="ai-results"></div>
+        </section>
 
-          <!-- 新聞 -->
-          <section class="result-card" id="card-news">
-            <div class="card-header">
-              <span class="card-icon">📰</span>
-              <h3>相關新聞</h3>
-              <span class="card-status" id="status-news"></span>
-            </div>
-            <div class="card-body" id="result-news"></div>
-          </section>
-
-          <!-- 公開資料 -->
-          <section class="result-card" id="card-public">
-            <div class="card-header">
-              <span class="card-icon">📋</span>
-              <h3>公開資料</h3>
-              <span class="card-status" id="status-public"></span>
-            </div>
-            <div class="card-body" id="result-public"></div>
-          </section>
-
-          <!-- Facebook -->
-          <section class="result-card" id="card-fb">
-            <div class="card-header">
-              <span class="card-icon">📘</span>
-              <h3>Facebook</h3>
-              <span class="card-status" id="status-fb"></span>
-            </div>
-            <div class="card-body" id="result-fb"></div>
-          </section>
-
-          <!-- Instagram -->
-          <section class="result-card" id="card-ig">
-            <div class="card-header">
-              <span class="card-icon">📷</span>
-              <h3>Instagram</h3>
-              <span class="card-status" id="status-ig"></span>
-            </div>
-            <div class="card-body" id="result-ig"></div>
-          </section>
-        </div>
+        <!-- Sources -->
+        <section id="sourcesSection" class="sources-section hidden">
+          <div class="section-header">
+            <span>📎</span>
+            <h3>延伸資料來源</h3>
+          </div>
+          <div id="sourceLinks" class="source-links"></div>
+        </section>
       </div>
 
       <!-- Empty State -->
       <div id="emptyState" class="empty-state">
         <div class="empty-animation">
-          <div class="eye-outer large">
-            <div class="eye-inner large"></div>
-          </div>
+          <div class="eye-outer large"><div class="eye-inner large"></div></div>
         </div>
         <h2>開始搜尋</h2>
-        <p>輸入公司名稱或個人姓名，即時搜尋所有公開資料</p>
+        <p>輸入公司名稱或個人姓名，AI 將搜尋所有公開資料並進行分析</p>
         <div class="features-grid">
-          <div class="feature-item">
-            <span>🏢</span>
-            <span>公司登記</span>
-          </div>
-          <div class="feature-item">
-            <span>⚖️</span>
-            <span>法院判決</span>
-          </div>
-          <div class="feature-item">
-            <span>📰</span>
-            <span>新聞報導</span>
-          </div>
-          <div class="feature-item">
-            <span>📋</span>
-            <span>公開資料</span>
-          </div>
-          <div class="feature-item">
-            <span>📘</span>
-            <span>Facebook</span>
-          </div>
-          <div class="feature-item">
-            <span>📷</span>
-            <span>Instagram</span>
-          </div>
+          <div class="feature-item"><span>🏢</span><span>公司登記</span></div>
+          <div class="feature-item"><span>⚖️</span><span>法院判決</span></div>
+          <div class="feature-item"><span>📰</span><span>新聞報導</span></div>
+          <div class="feature-item"><span>📋</span><span>公開資料</span></div>
+          <div class="feature-item"><span>📘</span><span>Facebook</span></div>
+          <div class="feature-item"><span>📷</span><span>Instagram</span></div>
         </div>
         <div class="suggestions">
           <p class="suggestions-title">熱門搜尋</p>
@@ -230,9 +151,8 @@
       </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
-      <p>SuperEyes &copy; 2026 | 所有資料來自公開來源 | AI 分析由 MiniMax 提供</p>
+      <p>SuperEyes &copy; 2026 | AI 搜尋由 MiniMax 提供</p>
     </footer>
   </div>
 
